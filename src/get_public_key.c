@@ -45,7 +45,7 @@ UX_FLOW(ux_display_public_flow,
 void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength, volatile unsigned int *flags, volatile unsigned int *tx) {
     VALIDATE(p2 == 0 && dataLength == sizeof(uint32_t), ERR_INVALID_REQUEST);
 
-    uint8_t account_number = readUint32BE(dataBuffer);
+    uint32_t account_number = readUint32BE(dataBuffer);
     PublicKeyContext_t* context = &data_context.pk_context;
     get_public_key(account_number, context->public_key);
     if (p1 == P1_NON_CONFIRM) {
