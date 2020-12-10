@@ -1,5 +1,5 @@
 const { TONClient } = require('ton-client-node-js');
-const config = require('./prepare_msg_config.json');
+const config = require('./send_config.json');
 const fs = require('fs');
 
 (async () => {
