@@ -24,7 +24,6 @@ const fs = require('fs');
         };
 
         const unsignedMessage = await contracts.createUnsignedRunMessage(TONContractRunParams);
-        // console.log(unsignedMessage);
         await fs.writeFileSync('./unsigned_msg', JSON.stringify(unsignedMessage));
         const bytesToSignHex = Buffer.from(unsignedMessage.signParams.bytesToSignBase64, 'base64').toString('hex');
         console.log(`Bytes to sign (hex): ${bytesToSignHex}`);

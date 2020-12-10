@@ -11,11 +11,14 @@ If you don't want to setup a global environnment, you can also setup one just fo
 install prerequisite and switch to a Nano X dev-env:
 
 ```bash
+sudo apt install gcc make gcc-multilib g++-multilib libncurses5
 sudo apt install python3-venv python3-dev libudev-dev libusb-1.0-0-dev
 
 # (s or x, depending on your device)
 source prepare-devenv.sh s 
 ```
+
+To fix problems connecting to Ledger follow this [guide](https://support.ledger.com/hc/en-us/articles/115005165269-Fix-connection-issues)
 
 Compile and load the app onto the device:
 ```bash
@@ -39,14 +42,14 @@ make clean DEBUG=1 load
 
 ## Example of Ledger wallet functionality
 
-Request public key:
+**Request public key:**
 ```bash
 source prepare-devenv.sh s
 cd examples
 python get_public_key.py --account 0
 ```
 
-Request address:
+**Request address:**
 ```bash
 source prepare-devenv.sh s
 cd examples
@@ -56,18 +59,32 @@ python get_address.py --account 1 --tvc SetcodeMultisigWallet.tvc --confirm
 # confirm or reject address on device
 ```
 
-The following example requires additional installation of [Node.js](https://github.com/nodesource/distributions/blob/master/README.md#installation-instructions) and module [ton-client-node-js](https://www.npmjs.com/package/ton-client-node-js)
+The following examples requires additional installation of [Node.js](https://github.com/nodesource/distributions/blob/master/README.md#installation-instructions) and module [ton-client-node-js](https://www.npmjs.com/package/ton-client-node-js)
 
-Replace values in `examples/sign/prepare_msg_config.json` with your configuration
+**Deploy SetcodeMultisigWallet contract:**
 
-Sign SetcodeMultisigWallet sendTransaction message:
+Replace values in `examples/sign/deploy_config.json` with your own
 ```bash
 source prepare-devenv.sh s
 cd examples
-node sign/prepare_msg.js 
-python sign/sign.py --account 2 --message %bytes_to_sign%
+python get_address.py --account 1 --tvc SetcodeMultisigWallet.tvc # get future address of the contract
+# send some tokens to the received address (about 0.5 should enough)
+node sign/prepare_deploy.js # get %bytes_to_sign
+python sign/sign.py --account 1 --message %bytes_to_sign% # sign bytes on device
 # confirm sign on device
-node sign/sign_msg.js %signed_bytes%
+node sign/run_deploy.js %signed_bytes%
+```
+Now you can send some tokens from the newly created address
+
+**Sign SetcodeMultisigWallet sendTransaction message:**
+Replace values in `examples/sign/send_config.json` with your own
+```bash
+source prepare-devenv.sh s
+cd examples
+node sign/prepare_send.js 
+python sign/sign.py --account 1 --message %bytes_to_sign%
+# confirm sign on device
+node sign/run_send.js %signed_bytes%
 ```
 
 ## Documentation
