@@ -77,6 +77,7 @@ node sign/run_deploy.js %signed_bytes%
 Now you can send some tokens from the newly created address
 
 **Sign SetcodeMultisigWallet sendTransaction message:**
+
 Replace values in `examples/sign/send_config.json` with your own
 ```bash
 source prepare-devenv.sh s
