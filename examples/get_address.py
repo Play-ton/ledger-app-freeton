@@ -14,6 +14,10 @@ parser.add_argument('-t', '--tvc', required=True, help='TVC file path')
 parser.add_argument('-c', '--confirm', action='store_true', help='Enable confirmation on device')
 args = parser.parse_args()
 
+if args.account < 0 or args.account > 4294967295:
+    print('Error: account number must be between 0 and 4294967295')
+    exit(1)
+
 print('Contract: {}'.format(os.path.basename(args.tvc)))
 
 INS_GET_ADDRESS = 0x04

@@ -13,6 +13,10 @@ parser.add_argument('-a', '--account', default=0, type=int, help='BIP32 account 
 parser.add_argument('-m', '--message', required=True, help='Bytes to sign')
 args = parser.parse_args()
 
+if args.account < 0 or args.account > 4294967295:
+    print('Error: account number must be between 0 and 4294967295')
+    exit(1)
+
 INS_SIGN = 0x03
 CLA = 0xe0
 SUCCESS = 0x9000

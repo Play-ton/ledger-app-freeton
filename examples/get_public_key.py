@@ -12,6 +12,10 @@ parser.add_argument('-a', '--account', default=0, type=int, help='BIP32 account 
 parser.add_argument('-c', '--confirm', action='store_true', help='Enable confirmation on device')
 args = parser.parse_args()
 
+if args.account < 0 or args.account > 4294967295:
+    print('Error: account number must be between 0 and 4294967295')
+    exit(1)
+
 INS_GET_PUBLIC_KEY = 0x02
 P1_CONFIRM = args.confirm
 CLA = 0xe0
