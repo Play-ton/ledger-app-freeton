@@ -68,7 +68,7 @@ Replace values in `examples/sign/deploy_config.json` with your own
 source prepare-devenv.sh s
 cd examples
 python get_address.py --account 1 --tvc SetcodeMultisigWallet.tvc # get future address of the contract
-# send some tokens to the received address (about 0.5 should enough)
+# send some tokens to the received address (about 0.5 should be enough)
 node sign/prepare_deploy.js # get %bytes_to_sign
 python sign/sign.py --account 1 --message %bytes_to_sign% # sign bytes on device
 # confirm sign on device
