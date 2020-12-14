@@ -8,7 +8,7 @@ To build and install the app on your Ledger Nano S you must set up the Ledger Na
 
 If you don't want to setup a global environnment, you can also setup one just for this app by sourcing `prepare-devenv.sh` with the right target (`s` or `x`).
 
-install prerequisite and switch to a Nano X dev-env:
+Install prerequisite and switch to a Nano S dev-env:
 
 ```bash
 sudo apt install gcc make gcc-multilib g++-multilib libncurses5
@@ -41,6 +41,10 @@ make clean DEBUG=1 load
 ```
 
 ## Example of Ledger wallet functionality
+
+All examples written for Linux and assumes Python 3.8 are installed as default python interpreter
+
+For Mac OS and Windows prepare envireonment by running `python -m pip install -r examples/requirements.txt` and skip execution of `source prepare-devenv.sh s`. For Mac OS use python3 instead of python.
 
 **Request public key:**
 ```bash
