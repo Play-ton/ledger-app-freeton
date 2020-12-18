@@ -44,52 +44,37 @@ make clean DEBUG=1 load
 
 All examples are written for Linux and assumes Python 3.8 is installed as default python interpreter
 
-For Mac OS and Windows prepare environment by running `python -m pip install -r examples/requirements.txt` and skip execution of `source prepare-devenv.sh s`. For Mac OS use python3 instead of python.
+For Mac OS and Windows prepare environment by running `python -m pip install -r requirements.txt` and skip execution of `source prepare-devenv.sh s`. For Mac OS use python3 instead of python.
 
 **Request public key:**
 ```bash
 source prepare-devenv.sh s
-cd examples
-python get_public_key.py --account 0
+python freetoncli.py --getpubkey --account 0
 ```
 
 **Request address:**
 ```bash
 source prepare-devenv.sh s
-cd examples
-# download the contract .tvc file
-wget https://raw.githubusercontent.com/tonlabs/ton-labs-contracts/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc
-python get_address.py --account 1 --tvc SetcodeMultisigWallet.tvc --confirm
-# confirm or reject address on device
+python freetoncli.py --getaddr --account 1
 ```
-
-The following examples requires additional installation of [Node.js](https://github.com/nodesource/distributions/blob/master/README.md#installation-instructions) and module [ton-client-node-js](https://www.npmjs.com/package/ton-client-node-js)
 
 **Deploy SetcodeMultisigWallet contract:**
 
-Replace values in `examples/sign/deploy_config.json` with your own
 ```bash
 source prepare-devenv.sh s
-cd examples
-python get_address.py --account 1 --tvc SetcodeMultisigWallet.tvc # get future address of the contract
+python freetoncli.py --getaddr --account 1 # get future address of the contract
 # send some tokens to the received address (about 0.5 should be enough)
-node sign/prepare_deploy.js # get %bytes_to_sign
-python sign/sign.py --account 1 --message %bytes_to_sign% # sign bytes on device
-# confirm sign on device
-node sign/run_deploy.js %signed_bytes%
+python freetoncli.py --url https://main.ton.dev --account 1 deploy
+# you will be asked for signature on device
 ```
 Now you can send some tokens from the newly created address
 
-**Sign SetcodeMultisigWallet sendTransaction message:**
+**Send tokens:**
 
-Replace values in `examples/sign/send_config.json` with your own
 ```bash
 source prepare-devenv.sh s
-cd examples
-node sign/prepare_send.js 
-python sign/sign.py --account 1 --message %bytes_to_sign%
-# confirm sign on device
-node sign/run_send.js %signed_bytes%
+python freetoncli.py --url main.ton.dev --account 0 send --dest 0:9ff3d2dea4bb74f6cf55d4ff7186bc6b6bb1f3c57338a7ffcb57528b35ddc4af --value 111111111111
+# you will be asked for signature on device
 ```
 
 ## Documentation

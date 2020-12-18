@@ -55,9 +55,7 @@ if [ ! -d dev-env ]; then
 
     python3 -m venv dev-env/ledger_py3
     source dev-env/ledger_py3/bin/activate
-    pip install wheel
-    pip install ledgerblue
-    pip install ledgercomm
+    pip install -r requirements.txt
 fi
 
 
