@@ -38,18 +38,18 @@ class Ledger:
         self.address = ''
         self.workchain = workchain
 
-    def get_public_key(self) -> str:
+    def get_public_key(self, confirm = False) -> str:
         if self.public_key:
             return self.public_key
         payload=(self.account).to_bytes(4, byteorder='big')
-        sw, response = self.transport.exchange(cla=CLA, ins=INS_GET_PUBLIC_KEY, cdata=payload)
+        sw, response = self.transport.exchange(cla=CLA, ins=INS_GET_PUBLIC_KEY, p1=confirm, cdata=payload)
         if sw != SUCCESS:
             raise Exception('get_public_key error: {:X}'.format(sw))
 
         self.public_key = response[1:].hex()
         return self.public_key
 
-    def get_address(self) -> str:
+    def get_address(self, confirm = False) -> str:
         if self.address:
             return self.address
 
@@ -67,7 +67,7 @@ class Ledger:
             raise Exception('get_address error: {:X}'.format(sw))
 
         payload = self.account.to_bytes(4, byteorder='big')
-        sw, response = self.transport.exchange(cla=CLA, ins=INS_GET_ADDRESS, p1=P1_LAST, cdata=payload)
+        sw, response = self.transport.exchange(cla=CLA, ins=INS_GET_ADDRESS, p1=P1_LAST, p2=confirm, cdata=payload)
         if sw != SUCCESS:
             raise Exception('get_address error: {:X}'.format(sw))
 
@@ -121,7 +121,24 @@ class Wallet:
         print('Deploying {} to {}'.format(WALLET_NAME, self.ledger.get_address()))
         deploy_set = DeploySet(tvc=base64.b64encode(get_tvc()).decode())
         self.call(None, 'constructor', {'owners':['0x' + self.ledger.get_public_key()], 'reqConfirms':1}, deploy_set)
+
+    def run_tvm(self, address, function_name, inputs):
+        keypair = self.client.crypto.generate_random_sign_keys()
+        call_set = CallSet(function_name=function_name, inputs=inputs)
+        abi = Abi.from_path(os.path.join(WALLET_DIR, WALLET_NAME + '.abi.json'))
+        signer = Signer.from_keypair(keypair=keypair)
+
+        msg = self.client.abi.encode_message(abi=abi, signer=signer, address=address, call_set=call_set)
+        account = self.client.net.wait_for_collection(collection='accounts', filter={'id': {'eq': address}}, result='id boc')
+        result = self.client.tvm.run_tvm(message=msg['message'], account=account['boc'], abi=abi)
+
+        json_formatted_str = json.dumps(result['decoded']['output'], indent=2)
+        print(json_formatted_str)
         
+    def get_transactions(self, address: str):
+        print('Get transactions at {}'.format(address))
+        self.run_tvm(address, 'getTransactions', {})
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -131,6 +148,7 @@ def main():
     parser.add_argument('--wc', default=0, type=int, help='Workchain id (default 0)')
     parser.add_argument('--getaddr', action='store_true', help='Get address given account')
     parser.add_argument('--getpubkey', action='store_true', help='Get public key given account')
+    parser.add_argument('--confirm', action='store_true', help='Confirm action on device')
 
     subparsers = parser.add_subparsers(title='subcommands')
     send_parser = subparsers.add_parser('send', help='Send tokens to address')
@@ -147,6 +165,10 @@ def main():
     deploy_parser = subparsers.add_parser('deploy', help='Deploy multisig wallet')
     deploy_parser.set_defaults(subcommand='deploy')
 
+    gettxs_parser = subparsers.add_parser('gettxs', help='Get multisig wallet transactions')
+    gettxs_parser.set_defaults(subcommand='gettxs')
+    gettxs_parser.add_argument('--msig', required=True, help='Multisig address')
+
     args = parser.parse_args()
 
     if args.account < 0 or args.account > 4294967295:
@@ -154,10 +176,10 @@ def main():
     
     ledger = Ledger(account=args.account, workchain=args.wc, debug=args.debug)
     if args.getaddr:
-        print('Address:', ledger.get_address())
+        print('Address:', ledger.get_address(args.confirm))
         return
     if args.getpubkey:
-        print('Public key:', ledger.get_public_key())
+        print('Public key:', ledger.get_public_key(args.confirm))
         return
     if 'subcommand' in vars(args):
         server_address = args.url
@@ -172,6 +194,9 @@ def main():
             return
         if args.subcommand == 'deploy':
             wallet.deploy()
+            return
+        if args.subcommand == 'gettxs':
+            wallet.get_transactions(args.msig)
             return
 
 
