@@ -39,6 +39,8 @@ class Ledger:
         self.workchain = workchain
 
     def get_public_key(self, confirm = False) -> str:
+        if confirm:
+            print('Please confirm public key on device')
         if self.public_key:
             return self.public_key
         payload=(self.account).to_bytes(4, byteorder='big')
@@ -50,6 +52,8 @@ class Ledger:
         return self.public_key
 
     def get_address(self, confirm = False) -> str:
+        if confirm:
+            print('Please confirm address on device')
         if self.address:
             return self.address
 
@@ -100,6 +104,7 @@ class Wallet:
         signature = self.ledger.sign(to_sign)
         msg = self.client.abi.attach_signature(abi=abi, public_key=public_key, message=unsigned_msg['message'], signature=signature)
         
+        print('Transaction in progress')
         shard_block_id = self.client.processing.send_message(message=msg['message'], send_events=False, abi=abi)
         result = self.client.processing.wait_for_transaction(message=msg['message'], shard_block_id=shard_block_id, send_events=False, abi=abi)
         if result['transaction']['aborted'] == False:
@@ -176,9 +181,11 @@ def main():
     
     ledger = Ledger(account=args.account, workchain=args.wc, debug=args.debug)
     if args.getaddr:
+        print('Getting address')
         print('Address:', ledger.get_address(args.confirm))
         return
     if args.getpubkey:
+        print('Getting public key')
         print('Public key:', ledger.get_public_key(args.confirm))
         return
     if 'subcommand' in vars(args):
