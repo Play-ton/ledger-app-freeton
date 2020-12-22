@@ -3,7 +3,9 @@
 ## Overview
 Free TON Ledger app for Ledger Nano S/X
 
-[![Free TON application on Leger Nano S](http://img.youtube.com/vi/QVHLJHUNEJU/0.jpg)](https://youtu.be/QVHLJHUNEJU "Free TON application on Leger Nano S")
+Video demonstration:
+
+[![Free TON application on Leger Nano S](https://i.imgur.com/akOhJYh.png)](https://youtu.be/QVHLJHUNEJU "Free TON application on Leger Nano S")
 
 ## Building and installing
 To build and install the app on your Ledger Nano S you must set up the Ledger Nano S build environments. Please follow the Getting Started instructions at [here](https://ledger.readthedocs.io/en/latest/userspace/getting_started.html).
