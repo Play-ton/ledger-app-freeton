@@ -62,7 +62,7 @@ source prepare-devenv.sh s
 python freetoncli.py --getaddr --account 1
 ```
 
-**Deploy SetcodeMultisigWallet contract:**
+**Deploy Wallet contract:**
 
 ```bash
 source prepare-devenv.sh s

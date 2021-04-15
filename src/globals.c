@@ -8,6 +8,3 @@ bolos_ux_params_t G_ux_params;
 // display stepped screens
 unsigned int ux_step;
 unsigned int ux_step_count;
-
-unsigned char N_buffer[TVC_BUFFER_SIZE];
-unsigned char N_hashes[HASHES_BUFFER_SIZE];

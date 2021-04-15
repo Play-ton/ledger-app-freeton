@@ -112,7 +112,7 @@ void get_cell_hash(Cell_t* cell, uint8_t* hash, const uint8_t cell_index) {
     }
     
     for (uint8_t child = 0; child < refs_count; ++child) {
-        uint8_t* cell_hash = (uint8_t*)N_hashesStorage + refs[child] * HASH_SIZE;
+        uint8_t* cell_hash = data_context.addr_context.hashes + refs[child] * HASH_SIZE;
         os_memcpy(hash_buffer + hash_buffer_offset, cell_hash, HASH_SIZE);
         hash_buffer_offset += HASH_SIZE;
     }
@@ -154,11 +154,10 @@ void get_address(const uint32_t account_number, uint8_t* address) {
     VALIDATE(cell_data_size != 0 && cell_data_size <= MAX_PUBLIC_KEY_CELL_DATA_SIZE, ERR_INVALID_DATA);
     uint8_t* cell_data = Cell_get_data(cell);
 
-    // copy data to ram to reduce writes to nvram
     os_memcpy(cc->public_key_cell_data, cell_data, cell_data_size);
     uint8_t* public_key = data_context.pk_context.public_key;
     get_public_key(account_number, public_key);
-
+    
     uint8_t offset = cc->public_key_label_size_bits;
     uint8_t* data = cc->public_key_cell_data;
     if (offset % 8 == 0) { // lucky day
@@ -194,14 +193,14 @@ void get_address(const uint32_t account_number, uint8_t* address) {
             }
         }
     }
-
+    
     uint8_t* hash = address;
     for (int16_t i = cc->cells_count - 1; i >= 0; --i) {
         Cell_t* cell = &cc->cells[i];
         os_memset(hash, 0, sizeof(hash));
         get_cell_hash(cell, hash, i);
         if (i != 0) {
-            nvm_write((uint8_t*)N_hashesStorage + i * HASH_SIZE, hash, HASH_SIZE);
+            os_memcpy(data_context.addr_context.hashes + i * HASH_SIZE, hash, HASH_SIZE);
         }
     }
 }
