@@ -10,3 +10,8 @@ src/glyphs.h
 gitignore
 node_modules
 *.log*
+test.py
+build
+dist
+__pycache__
+*.spec
