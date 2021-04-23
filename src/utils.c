@@ -96,3 +96,75 @@ uint8_t leading_zeros(uint16_t value) {
 
     return lz;
 }
+
+#define SCRATCH_SIZE 37
+uint8_t convert_hex_amount_to_displayable(uint8_t* amount, uint8_t amount_length, char* out) {
+    uint8_t LOOP1 = 28;
+    uint8_t LOOP2 = 9;
+    uint16_t scratch[SCRATCH_SIZE];
+    uint8_t offset = 0;
+    uint8_t nonZero = 0;
+    uint8_t i;
+    uint8_t targetOffset = 0;
+    uint8_t workOffset;
+    uint8_t j;
+    uint8_t nscratch = SCRATCH_SIZE;
+    uint8_t smin = nscratch - 2;
+    uint8_t comma = 0;
+
+    for (i = 0; i < SCRATCH_SIZE; i++) {
+        scratch[i] = 0;
+    }
+    for (i = 0; i < amount_length; i++) {
+        for (j = 0; j < 8; j++) {
+            uint8_t k;
+            uint16_t shifted_in =
+                (((amount[i] & 0xff) & ((1 << (7 - j)))) != 0) ? (short)1
+                                                               : (short)0;
+            for (k = smin; k < nscratch; k++) {
+                scratch[k] += ((scratch[k] >= 5) ? 3 : 0);
+            }
+            if (scratch[smin] >= 8) {
+                smin -= 1;
+            }
+            for (k = smin; k < nscratch - 1; k++) {
+                scratch[k] =
+                    ((scratch[k] << 1) & 0xF) | ((scratch[k + 1] >= 8) ? 1 : 0);
+            }
+            scratch[nscratch - 1] = ((scratch[nscratch - 1] << 1) & 0x0F) |
+                                    (shifted_in == 1 ? 1 : 0);
+        }
+    }
+
+    for (i = 0; i < LOOP1; i++) {
+        if (!nonZero && (scratch[offset] == 0)) {
+            offset++;
+        } else {
+            nonZero = 1;
+            out[targetOffset++] = scratch[offset++] + '0';
+        }
+    }
+    if (targetOffset == 0) {
+        out[targetOffset++] = '0';
+    }
+    workOffset = offset;
+    for (i = 0; i < LOOP2; i++) {
+        unsigned char allZero = 1;
+        unsigned char j;
+        for (j = i; j < LOOP2; j++) {
+            if (scratch[workOffset + j] != 0) {
+                allZero = 0;
+                break;
+            }
+        }
+        if (allZero) {
+            break;
+        }
+        if (!comma) {
+            out[targetOffset++] = '.';
+            comma = 1;
+        }
+        out[targetOffset++] = scratch[offset++] + '0';
+    }
+    return targetOffset;
+}

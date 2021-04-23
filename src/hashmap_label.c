@@ -24,14 +24,14 @@ uint8_t get_label(uint8_t max, struct SliceData_t* slice, struct SliceData_t* la
 }
 
 void put_to_node(uint8_t cell_index, uint16_t bit_len, struct SliceData_t* key) {
-    VALIDATE(cell_index != 0 && cell_index <= MAX_CELLS_COUNT, ERR_INVALID_DATA);
+    VALIDATE(cell_index != 0 && cell_index <= MAX_CONTRACT_CELLS_COUNT, ERR_INVALID_DATA);
     static const uint8_t key_len_bytes = 8;
     VALIDATE(key && key->data_size_bytes == key_len_bytes, ERR_RANGE_CHECK);
     for (uint8_t i = 0; i < key_len_bytes; ++i) {
         VALIDATE(key->data[i] == 0, ERR_INVALID_KEY);
     }
 
-    Cell_t* cell = &contract_context.cells[cell_index];
+    Cell_t* cell = &boc_context.cells[cell_index];
     SliceData_t slice;
     SliceData_init(&slice, Cell_get_data(cell), Cell_get_data_size(cell));
 
@@ -44,8 +44,8 @@ void put_to_node(uint8_t cell_index, uint16_t bit_len, struct SliceData_t* key) 
     if (SliceData_equal(&label, key)) {
         uint8_t len = 16 - leading_zeros(bit_len);
         uint8_t label_size_bits = 2 + 1 + len; // prefix + key bit + len
-        contract_context.public_key_label_size_bits = label_size_bits;
-        contract_context.public_key_cell_index = cell_index;
+        boc_context.public_key_label_size_bits = label_size_bits;
+        boc_context.public_key_cell_index = cell_index;
         return;
     }
 
@@ -70,10 +70,10 @@ void put_to_node(uint8_t cell_index, uint16_t bit_len, struct SliceData_t* key) 
     VALIDATE(next_index == 0, ERR_INVALID_KEY);
 
     uint8_t refs_count = 0;
-    uint8_t* refs = Cell_get_refs(&contract_context.cells[cell_index], &refs_count);
+    uint8_t* refs = Cell_get_refs(&boc_context.cells[cell_index], &refs_count);
     VALIDATE(refs_count > 0 && refs_count <= MAX_REFERENCES_COUNT, ERR_INVALID_DATA);
     uint8_t next_cell = refs[next_index];
-    VALIDATE(next_cell != 0 && next_cell <= MAX_CELLS_COUNT, ERR_INVALID_DATA);
+    VALIDATE(next_cell != 0 && next_cell <= MAX_CONTRACT_CELLS_COUNT, ERR_INVALID_DATA);
     bit_len -= 1;
 
     return put_to_node(next_cell, bit_len, key);

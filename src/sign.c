@@ -9,7 +9,7 @@ static uint8_t set_result_sign() {
     BEGIN_TRY {
         TRY {
             get_private_key(context->account_number, &privateKey);
-            cx_eddsa_sign(&privateKey, CX_LAST, CX_SHA512, context->to_sign, TO_SIGN_LENGTH, NULL, 0, context->hash, SIGN_LENGTH, NULL);
+            cx_eddsa_sign(&privateKey, CX_LAST, CX_SHA512, context->to_sign, TO_SIGN_LENGTH, NULL, 0, context->signature, SIGNATURE_LENGTH, NULL);
         } FINALLY {
             os_memset(&privateKey, 0, sizeof(privateKey));
         }
@@ -17,9 +17,9 @@ static uint8_t set_result_sign() {
     END_TRY;
 
     uint8_t tx = 0;
-    G_io_apdu_buffer[tx++] = SIGN_LENGTH;
-    os_memmove(G_io_apdu_buffer + tx, context->hash, SIGN_LENGTH);
-    tx += SIGN_LENGTH;
+    G_io_apdu_buffer[tx++] = SIGNATURE_LENGTH;
+    os_memmove(G_io_apdu_buffer + tx, context->signature, SIGNATURE_LENGTH);
+    tx += SIGNATURE_LENGTH;
     return tx;
 }
 
