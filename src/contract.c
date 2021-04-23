@@ -6,35 +6,6 @@
 #include "errors.h"
 #include "hashmap_label.h"
 
-#define BOC_GENERIC_TAG 0xb5ee9c72
-#define MAX_ROOTS_COUNT 1
-#define HASH_SIZE 32
-
-uint16_t deserialize_cell(struct Cell_t* cell, const uint8_t cell_index, const uint8_t cells_count) {
-    uint8_t d1 = Cell_get_d1(cell);
-    uint8_t l = d1 >> 5; // level
-    uint8_t h = (d1 & 16) == 16; // with hashes
-    uint8_t s = (d1 & 8) == 8; // exotic
-    uint8_t r = d1 & 7;	// refs count
-    uint8_t absent = r == 7 && h;
-    UNUSED(l);
-    UNUSED(absent);
-
-    VALIDATE(!h, ERR_INVALID_DATA);
-    VALIDATE(!s, ERR_INVALID_DATA); // only ordinary cells are valid
-    VALIDATE(r <= MAX_REFERENCES_COUNT, ERR_INVALID_DATA);
-
-    uint8_t data_size = Cell_get_data_size(cell);
-    uint8_t refs_count = 0;
-    uint8_t* refs = Cell_get_refs(cell, &refs_count);
-    for (uint8_t i = 0; i < refs_count; ++i) {
-        uint8_t ref = refs[i];
-        VALIDATE(ref <= cells_count && ref > cell_index, ERR_INVALID_DATA);
-    }
-
-    return CELL_DATA_OFFSET + data_size + refs_count; // cell size
-}
-
 void deserialize_cells_tree(struct ByteStream_t* src) {
     {
         uint64_t magic = ByteStream_read_u32(src);
@@ -60,8 +31,8 @@ void deserialize_cells_tree(struct ByteStream_t* src) {
     uint8_t cells_count = ByteStream_read_byte(src);
     uint8_t roots_count = ByteStream_read_byte(src);
     VALIDATE(roots_count == MAX_ROOTS_COUNT, ERR_INVALID_DATA);
-    VALIDATE(cells_count <= MAX_CELLS_COUNT, ERR_INVALID_DATA);
-    contract_context.cells_count = cells_count;
+    VALIDATE(cells_count <= MAX_CONTRACT_CELLS_COUNT, ERR_INVALID_DATA);
+    boc_context.cells_count = cells_count;
 
     {
         uint8_t absent_count = ByteStream_read_byte(src);
@@ -77,61 +48,22 @@ void deserialize_cells_tree(struct ByteStream_t* src) {
         uint8_t* cell_begin = ByteStream_get_cursor(src);
         Cell_init(&cell, cell_begin);
         uint16_t offset = deserialize_cell(&cell, i, cells_count);
-        contract_context.cells[i] = cell;
+        boc_context.cells[i] = cell;
         ByteStream_read_data(src, offset);
     }
 }
 
-void get_cell_hash(Cell_t* cell, uint8_t* hash, const uint8_t cell_index) {
-    uint8_t hash_buffer[262]; // d1(1) + d2(1) + data(128) + 4 * (depth(1) + hash(32))
-
-    uint16_t hash_buffer_offset = 0;
-    hash_buffer[0] = Cell_get_d1(cell);
-    hash_buffer[1] = Cell_get_d2(cell);
-    hash_buffer_offset += 2;
-    uint8_t data_size = Cell_get_data_size(cell);
-    if (contract_context.public_key_cell_index && cell_index == contract_context.public_key_cell_index) {
-        os_memcpy(hash_buffer + hash_buffer_offset, contract_context.public_key_cell_data, data_size);
-    } else {
-        os_memcpy(hash_buffer + hash_buffer_offset, Cell_get_data(cell), data_size);
-    }
-    hash_buffer_offset += data_size;
-
-    uint8_t refs_count = 0;
-    uint8_t* refs = Cell_get_refs(cell, &refs_count);
-    VALIDATE(refs_count >= 0 && refs_count <= MAX_REFERENCES_COUNT, ERR_INVALID_DATA);
-    for (uint8_t child = 0; child < refs_count; ++child) {
-        uint8_t* depth = &contract_context.cell_depth[cell_index];
-        uint8_t child_depth = contract_context.cell_depth[refs[child]];
-        *depth = (*depth > child_depth + 1) ? *depth : (child_depth + 1);
-        uint8_t buf[2];
-        buf[0] = 0;
-        buf[1] = child_depth;
-        os_memcpy(hash_buffer + hash_buffer_offset, buf, sizeof(buf));
-        hash_buffer_offset += sizeof(buf);
-    }
-    
-    for (uint8_t child = 0; child < refs_count; ++child) {
-        uint8_t* cell_hash = (uint8_t*)N_hashesStorage + refs[child] * HASH_SIZE;
-        os_memcpy(hash_buffer + hash_buffer_offset, cell_hash, HASH_SIZE);
-        hash_buffer_offset += HASH_SIZE;
-    }
-    
-    int result = cx_hash_sha256(hash_buffer, hash_buffer_offset, hash, HASH_SIZE);
-    VALIDATE(result == HASH_SIZE, ERR_INVALID_HASH);
-}
-
 void find_public_key_cell() {
-    ContractContext_t* cc = &contract_context;
-    VALIDATE(Cell_get_data(&cc->cells[0])[0] & 0x20, ERR_INVALID_DATA); // has data branch
+    BocContext_t* bc = &boc_context;
+    VALIDATE(Cell_get_data(&bc->cells[0])[0] & 0x20, ERR_INVALID_DATA); // has data branch
 
     uint8_t refs_count = 0;
-    uint8_t* refs = Cell_get_refs(&cc->cells[0], &refs_count);
+    uint8_t* refs = Cell_get_refs(&bc->cells[0], &refs_count);
     VALIDATE(refs_count > 0 && refs_count <= 2, ERR_INVALID_DATA);
 
     uint8_t data_root = refs[refs_count - 1];
-    VALIDATE(data_root != 0 && data_root <= MAX_CELLS_COUNT, ERR_INVALID_DATA);
-    refs = Cell_get_refs(&cc->cells[data_root], &refs_count);
+    VALIDATE(data_root != 0 && data_root <= MAX_CONTRACT_CELLS_COUNT, ERR_INVALID_DATA);
+    refs = Cell_get_refs(&bc->cells[data_root], &refs_count);
     VALIDATE(refs_count != 0 && refs_count <= MAX_REFERENCES_COUNT, ERR_INVALID_DATA);
     
     uint8_t key_buffer[8];
@@ -143,65 +75,58 @@ void find_public_key_cell() {
     put_to_node(refs[0], bit_len, &key);
 }
 
-void get_address(const uint32_t account_number, uint8_t* address) {
-    ContractContext_t* cc = &contract_context;
-    VALIDATE(cc->cells_count != 0, ERR_INVALID_DATA);
-    find_public_key_cell(); // sets public key cell index to contract_context
+const uint8_t wallet[] = {
+    0xB5,0xEE,0x9C,0x72,0x01,0x02,0x10,0x01,0x00,0x02,0x1E,0x00,0x02,0x01,0x34,0x03,0x01,0x01,0x01,0xC0,0x02,0x00,0x43,0xD0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x02,0x26,0xFF,0x00,0xF4,0xA4,0x20,
+    0x22,0xC0,0x01,0x92,0xF4,0xA0,0xE1,0x8A,0xED,0x53,0x58,0x30,0xF4,0xA1,0x08,0x04,0x01,0x0A,0xF4,0xA4,0x20,0xF4,0xA1,0x05,0x02,0x09,0x9F,0x00,0x00,0x00,0x03,0x07,
+    0x06,0x00,0x27,0x3B,0x51,0x34,0x34,0xFF,0xF4,0xCF,0xF4,0xC0,0x34,0x5F,0xFE,0x18,0x7E,0x19,0xBE,0x18,0xFE,0x18,0xA0,0x00,0x25,0x3E,0x10,0xB2,0x32,0xFF,0xFE,0x10,
+    0xF3,0xC2,0xCF,0xFE,0x11,0xB3,0xC2,0xC0,0x32,0x7B,0x55,0x20,0x02,0x01,0x20,0x0B,0x09,0x01,0xFE,0xFF,0x7F,0x21,0xED,0x44,0xD0,0x20,0xD7,0x49,0xC2,0x01,0x8E,0x10,
+    0xD3,0xFF,0xD3,0x3F,0xD3,0x00,0xD1,0x7F,0xF8,0x61,0xF8,0x66,0xF8,0x63,0xF8,0x62,0x8E,0x18,0xF4,0x05,0x70,0x01,0x80,0x40,0xF4,0x0E,0xF2,0xBD,0xD7,0x0B,0xFF,0xF8,
+    0x62,0x70,0xF8,0x63,0x70,0xF8,0x66,0x7F,0xF8,0x61,0xE2,0xD3,0x00,0x01,0x8E,0x12,0x81,0x02,0x00,0xD7,0x18,0x20,0xF9,0x01,0x58,0xF8,0x42,0x20,0xF8,0x65,0xF9,0x10,
+    0xF2,0xA8,0xDE,0xD3,0x3F,0x01,0x8E,0x1E,0xF8,0x43,0x21,0xB9,0x20,0x9F,0x30,0x20,0xF8,0x23,0x81,0x03,0xE8,0xA8,0x82,0x08,0x1B,0x77,0x40,0xA0,0xB9,0xDE,0x92,0xF8,
+    0x63,0xE0,0x80,0x34,0xF2,0x34,0xD8,0xD3,0x1F,0x01,0xF8,0x23,0xBC,0xF2,0xB9,0xD3,0x1F,0x21,0x0A,0x00,0x32,0xC1,0x03,0x22,0x82,0x10,0xFF,0xFF,0xFF,0xFD,0xBC,0xB1,
+    0x92,0xF2,0x3C,0xE0,0x01,0xF0,0x01,0xF8,0x47,0x6E,0x92,0xF2,0x3C,0xDE,0x02,0x01,0x20,0x0D,0x0C,0x00,0xAB,0xBD,0x45,0xAA,0xF9,0xFF,0xC2,0x0B,0x74,0x71,0xAF,0x6A,
+    0x26,0x81,0x06,0xBA,0x4E,0x10,0x0C,0x70,0x86,0x9F,0xFE,0x99,0xFE,0x98,0x06,0x8B,0xFF,0xC3,0x0F,0xC3,0x37,0xC3,0x1F,0xC3,0x14,0x70,0xC7,0xA0,0x2B,0x80,0x0C,0x02,
+    0x07,0xA0,0x77,0x95,0xEE,0xB8,0x5F,0xFF,0xC3,0x13,0x87,0xC3,0x1B,0x87,0xC3,0x33,0xFF,0xC3,0x0F,0x16,0xF7,0xC2,0x37,0x93,0x9B,0x8F,0xC3,0x36,0x8F,0xC2,0x16,0x18,
+    0x07,0x97,0x03,0x27,0xC0,0x07,0x80,0x13,0xFF,0xC3,0x3C,0x02,0x01,0x20,0x0F,0x0E,0x00,0xCF,0xBB,0x15,0xEF,0x93,0x5F,0x84,0x16,0xE9,0x2F,0x00,0x3D,0xEF,0xA4,0x0D,
+    0x70,0xD7,0xF9,0x5D,0x4D,0x1D,0x0D,0x37,0xFD,0xFD,0x70,0xC0,0x09,0x5D,0x4D,0x1D,0x0D,0x20,0x0D,0xFD,0x1F,0x84,0x52,0x06,0xE9,0x23,0x07,0x0D,0xEF,0x84,0x2B,0xAF,
+    0x2E,0x06,0x4F,0x80,0x02,0x1C,0x20,0x02,0x09,0x73,0x02,0x1F,0x82,0x76,0xF1,0x0B,0x9D,0xEF,0x2E,0x06,0x52,0x12,0x32,0x2C,0x8C,0xF8,0x58,0x0C,0xA0,0x07,0x3C,0xF4,
+    0x0C,0xE0,0x1F,0xA0,0x28,0x06,0x9C,0xF4,0x0C,0xF8,0x1C,0xF8,0x1C,0x97,0x0F,0xB0,0x05,0xF0,0x39,0x2F,0x00,0x2D,0xE7,0xFF,0x86,0x78,0x00,0x5C,0xDD,0x70,0x22,0xD0,
+    0xD7,0x0B,0x03,0xA9,0x38,0x00,0xDC,0x21,0xC7,0x00,0xDC,0x21,0xD3,0x1F,0x21,0xDD,0x21,0xC1,0x03,0x22,0x82,0x10,0xFF,0xFF,0xFF,0xFD,0xBC,0xB1,0x92,0xF2,0x3C,0xE0,
+    0x01,0xF0,0x01,0xF8,0x47,0x6E,0x92,0xF2,0x3C,0xDE
+};
 
-    VALIDATE(cc->public_key_cell_index && cc->public_key_label_size_bits, ERR_CELL_IS_EMPTY);
-    Cell_t* cell = &cc->cells[cc->public_key_cell_index];
+void get_address(const uint32_t account_number, uint8_t* address) {
+    {
+        ByteStream_t src;
+        ByteStream_init(&src, (uint8_t*)wallet, sizeof(wallet));
+        deserialize_cells_tree(&src);
+    }
+
+    BocContext_t* bc = &boc_context;
+    VALIDATE(bc->cells_count != 0, ERR_INVALID_DATA);
+    find_public_key_cell(); // sets public key cell index to boc_context
+
+    VALIDATE(bc->public_key_cell_index && bc->public_key_label_size_bits, ERR_CELL_IS_EMPTY);
+    Cell_t* cell = &bc->cells[bc->public_key_cell_index];
     uint8_t cell_data_size = Cell_get_data_size(cell);
     VALIDATE(cell_data_size != 0 && cell_data_size <= MAX_PUBLIC_KEY_CELL_DATA_SIZE, ERR_INVALID_DATA);
     uint8_t* cell_data = Cell_get_data(cell);
 
-    // copy data to ram to reduce writes to nvram
-    os_memcpy(cc->public_key_cell_data, cell_data, cell_data_size);
+    os_memcpy(bc->public_key_cell_data, cell_data, cell_data_size);
     uint8_t* public_key = data_context.pk_context.public_key;
     get_public_key(account_number, public_key);
-
-    uint8_t offset = cc->public_key_label_size_bits;
-    uint8_t* data = cc->public_key_cell_data;
-    if (offset % 8 == 0) { // lucky day
-        os_memcpy(data + offset / 8, public_key, PUBLIC_KEY_LENGTH);
-    }
-    else {
-        uint8_t shift = offset % 8;
-        uint8_t first_data_byte = offset / 8;
-        for (uint16_t i = first_data_byte, j = 0; j < PUBLIC_KEY_LENGTH; ++i, ++j) {
-            VALIDATE(i == (j + first_data_byte) && i < cell_data_size, ERR_INVALID_DATA);
-
-            uint8_t pk_cur = public_key[j] >> shift;
-            if (i == first_data_byte) {
-                uint8_t first_byte = data[i] >> (8 - shift);
-                first_byte <<= 8 - shift;
-                data[i] = first_byte | pk_cur;
-                continue;
-            }
-
-            uint8_t pk_prev = public_key[j - 1] << (8 - shift);
-            data[i] = pk_prev | pk_cur;
-            if (j == PUBLIC_KEY_LENGTH - 1) { // append tag
-                uint8_t last_byte = public_key[j] << (8 - shift);
-                last_byte = pk_cur | last_byte;
-                if (shift != 7) {
-                    last_byte >>= 7 - shift;
-                }
-                last_byte |= 1;
-                if (shift != 7) {
-                    last_byte <<= 7 - shift;
-                }
-                data[i + 1] = last_byte;
-            }
-        }
+    
+    uint8_t* data = bc->public_key_cell_data;
+    SliceData_t slice;
+    SliceData_init(&slice, data, sizeof(bc->public_key_cell_data));
+    SliceData_move_by(&slice, bc->public_key_label_size_bits);
+    SliceData_append(&slice, public_key, PUBLIC_KEY_LENGTH * 8, true);
+    
+    for (int16_t i = bc->cells_count - 1; i >= 0; --i) {
+        Cell_t* cell = &bc->cells[i];
+        calc_cell_hash(cell, i);
     }
 
-    uint8_t* hash = address;
-    for (int16_t i = cc->cells_count - 1; i >= 0; --i) {
-        Cell_t* cell = &cc->cells[i];
-        os_memset(hash, 0, sizeof(hash));
-        get_cell_hash(cell, hash, i);
-        if (i != 0) {
-            nvm_write((uint8_t*)N_hashesStorage + i * HASH_SIZE, hash, HASH_SIZE);
-        }
-    }
+    os_memcpy(address, bc->hashes, HASH_SIZE);
 }

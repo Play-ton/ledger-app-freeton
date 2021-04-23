@@ -62,7 +62,7 @@ source prepare-devenv.sh s
 python freetoncli.py --getaddr --account 1
 ```
 
-**Deploy SetcodeMultisigWallet contract:**
+**Deploy Wallet contract:**
 
 ```bash
 source prepare-devenv.sh s
@@ -77,23 +77,9 @@ Now you can send some tokens from the newly created address
 
 ```bash
 source prepare-devenv.sh s
-python freetoncli.py --url main.ton.dev --account 0 send --dest 0:9ff3d2dea4bb74f6cf55d4ff7186bc6b6bb1f3c57338a7ffcb57528b35ddc4af --value 111111111111
+python freetoncli.py --url main.ton.dev --account 0 send --dest 0:9ff3d2dea4bb74f6cf55d4ff7186bc6b6bb1f3c57338a7ffcb57528b35ddc4af --value 111.111111111
 # you will be asked for signature on device
 ```
 
-**Get SetcodeMultisigWallet unconfirmed transactions**
-
-```bash
-source prepare-devenv.sh s
-python freetoncli.py --url net.ton.dev gettxs --msig=-1:4749ebadc203974c5ec61b557be5aefce2c60a344563c54f756a2cc89febd589
-```
-
-**Confirm SetcodeMultisigWallet transaction**
-
-```bash
-source prepare-devenv.sh s
-python freetoncli.py --url net.ton.dev -a0 confirm --msig=-1:4749ebadc203974c5ec61b557be5aefce2c60a344563c54f756a2cc89febd589 --id 0x5fdc9d9edfc85781
-```
-
 ## Documentation
-This follows the specification available in the [`freetonapp.asc`](https://github.com/play-ton/ledger-app-freeton/blob/master/doc/freetonapp.asc)
+This follows the specification available in the [`freetonapp.asc`](doc/freetonapp.asc)

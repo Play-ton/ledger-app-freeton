@@ -1,6 +1,7 @@
 #include "slice_data.h"
 #include "globals.h"
 #include "utils.h"
+#include "cell.h"
 
 void SliceData_init(struct SliceData_t* self, uint8_t* data, uint16_t data_size_bytes) {
     VALIDATE(self && data, ERR_SLICE_IS_EMPTY);
@@ -8,6 +9,12 @@ void SliceData_init(struct SliceData_t* self, uint8_t* data, uint16_t data_size_
     self->data_window_start = 0;
     self->data_window_end = data_size_bytes * 8;
     self->data_size_bytes = data_size_bytes;
+}
+
+void SliceData_from_cell(struct SliceData_t* self, struct Cell_t* cell) {
+    uint8_t* cell_data = Cell_get_data(cell);
+    uint8_t cell_data_size = Cell_get_data_size(cell);
+    SliceData_init(self, cell_data, cell_data_size);
 }
 
 void SliceData_fill(struct SliceData_t* self, uint8_t value, uint16_t data_size_bytes) {
@@ -130,4 +137,65 @@ bool SliceData_equal(const struct SliceData_t* self, const struct SliceData_t* o
     }
 
     return SliceData_get_int(self, self_rb) == SliceData_get_int(other, other_rb);
+}
+
+uint16_t SliceData_get_cursor(const struct SliceData_t* self) {
+    VALIDATE(self && self->data, ERR_SLICE_IS_EMPTY);
+    return self->data_window_start;
+}
+
+uint8_t* SliceData_begin(const struct SliceData_t* self) {
+    VALIDATE(self && self->data, ERR_SLICE_IS_EMPTY);
+    return self->data;
+}
+
+uint16_t SliceData_data_size(const struct SliceData_t* self) {
+    VALIDATE(self && self->data, ERR_SLICE_IS_EMPTY);
+    return self->data_size_bytes;
+}
+
+void SliceData_append(struct SliceData_t* self, uint8_t* in, uint16_t bits, bool append_tag) {
+    uint8_t bytes = bits / 8;
+    VALIDATE(bytes <= SliceData_remaining_bits(self) * 8, ERR_CELL_UNDERFLOW);
+
+    uint16_t offset = self->data_window_start;
+    if (offset % 8 == 0 || bytes == 0) {
+        os_memcpy(self->data + offset / 8, in, bytes ? bytes : 1);
+    }
+    else {
+        uint8_t shift = offset % 8;
+        uint8_t first_data_byte = offset / 8;
+        uint8_t prev = 0;
+        for (uint16_t i = first_data_byte, j = 0; j < bytes; ++i, ++j) {
+            VALIDATE(i == (j + first_data_byte) && i < self->data_size_bytes, ERR_INVALID_DATA);
+
+            uint8_t cur = in[j] >> shift;
+            if (j == 0) {
+                uint8_t first_byte = self->data[i] >> (8 - shift);
+                first_byte <<= 8 - shift;
+                self->data[i] = first_byte | cur;
+            } else {
+                self->data[i] = prev | cur;
+            }
+
+            prev = in[j] << (8 - shift);
+            if (j == bytes - 1) {
+                uint8_t last_byte = prev;
+                if (append_tag) {
+                    if (shift != 7) {
+                        last_byte >>= 7 - shift;
+                    }
+                    last_byte |= 1;
+                    if (shift != 7) {
+                        last_byte <<= 7 - shift;
+                    }
+
+                    bits += 8 - shift;
+                }
+                self->data[i + 1] = last_byte;
+            }
+        }
+    }
+    
+    self->data_window_start += bits;
 }

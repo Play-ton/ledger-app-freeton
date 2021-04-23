@@ -14,6 +14,7 @@
 #define INS_GET_PUBLIC_KEY 0x02
 #define INS_SIGN 0x03
 #define INS_GET_ADDRESS 0x04
+#define INS_SIGN_TRANSACTION 0x05
 
 #define OFFSET_CLA 0
 #define OFFSET_INS 1
@@ -26,5 +27,6 @@ void handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint
 void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength, volatile unsigned int *flags, volatile unsigned int *tx);
 void handleSign(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength, volatile unsigned int *flags, volatile unsigned int *tx);
 void handleGetAddress(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength, volatile unsigned int *flags, volatile unsigned int *tx);
+void handleSignTransaction(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength, volatile unsigned int *flags, volatile unsigned int *tx);
 
 #endif
