@@ -9,4 +9,4 @@ src/glyphs.h
 .vscode
 gitignore
 node_modules
-*.log
+*.log*

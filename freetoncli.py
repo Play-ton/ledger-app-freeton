@@ -5,6 +5,7 @@ import sys
 import json
 import argparse
 import logging
+import logging.handlers
 import base64
 import time
 from ledgercomm import Transport
@@ -15,6 +16,8 @@ from tonclient.types import Abi, DeploySet, CallSet, Signer, AccountForExecutor
 logging.basicConfig(filename='freetoncli.log', format='%(asctime)s;%(levelname)s;%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 logger = logging.getLogger('logger')
 logger.addHandler(logging.StreamHandler(sys.stdout))
+handler = logging.handlers.RotatingFileHandler(filename='freetoncli.log', maxBytes=1000000, backupCount=2)
+logger.addHandler(handler)
 
 WALLET_DIR = 'wallet'
 WALLET_NAME = 'Wallet'
