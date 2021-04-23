@@ -209,5 +209,7 @@ if __name__ == "__main__":
         logger.error('Fatal error: {}'.format(ex))
     except tonclient.errors.TonException as ex:
         logger.error('Fatal error: {}'.format(ex))
+    except AssertionError as ex:
+        logger.error('Fatal error: {}'.format(ex))
     except Exception:
         logger.error('Fatal error', exc_info=True)
