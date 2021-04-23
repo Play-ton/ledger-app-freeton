@@ -138,8 +138,16 @@ class Wallet:
         json_formatted_str = json.dumps(result['decoded']['output'], indent=2)
         logger.info(json_formatted_str)
 
+
+class ArgParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_help()
+        sys.stderr.write('error: %s\n' % message)
+        sys.exit(2)
+
+
 def main():
-    parser = argparse.ArgumentParser()
+    parser = ArgParser()
     parser.add_argument('-a', '--account', default=0, type=int, help='BIP32 account to retrieve (default 0)')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug logs')
     parser.add_argument('-u', '--url', default=DEVNET_BASE_URL, help='Server address (default {})'.format(DEVNET_BASE_URL))
@@ -158,6 +166,10 @@ def main():
     deploy_parser.set_defaults(subcommand='deploy')
 
     args = parser.parse_args()
+
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
 
     if args.account < 0 or args.account > 4294967295:
         raise WalletException('account number must be between 0 and 4294967295')
