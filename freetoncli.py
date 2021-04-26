@@ -180,7 +180,9 @@ def main():
     ledger = Ledger(account=args.account, workchain=args.wc, debug=args.debug)
     if args.getaddr:
         logger.info('Getting address')
-        logger.info('Address: {}'.format(ledger.get_address(args.confirm)))
+        logger.info('Address: {}'.format(ledger.get_address()))
+        if args.confirm:
+            ledger.get_address(True)
         return
     if args.getpubkey:
         logger.info('Getting public key')
