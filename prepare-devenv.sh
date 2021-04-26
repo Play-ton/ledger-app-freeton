@@ -53,13 +53,13 @@ if [ ! -d dev-env ]; then
     rm nanos-secure-sdk.tar.gz
     mv nanos-secure-sdk* dev-env/SDK/nanos-secure-sdk
 
-    python3 -m venv dev-env/ledger_py3
-    source dev-env/ledger_py3/bin/activate
+    python3 -m venv venv
+    source venv/bin/activate
     pip install -r requirements.txt
 fi
 
 
-source dev-env/ledger_py3/bin/activate
+source venv/bin/activate
 
 if [[ $1 == "s" ]]; then
     export BOLOS_SDK=$(pwd)/dev-env/SDK/nanos-secure-sdk
