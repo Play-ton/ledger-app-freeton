@@ -84,8 +84,15 @@ class Wallet:
     def __init__(self, client: TonClient, ledger: Ledger):
         self.client = client
         self.ledger = ledger
-        self.abi = Abi.from_path(os.path.join(WALLET_DIR, WALLET_NAME + '.abi.json'))
-        with open(os.path.join(WALLET_DIR, WALLET_NAME + '.tvc'), 'rb') as f:
+        if getattr(sys, 'frozen', False):
+            path = os.path.join(sys._MEIPASS, WALLET_DIR)
+            abi_path = os.path.join(path, WALLET_NAME + '.abi.json')
+            tvc_path = os.path.join(path, WALLET_NAME + '.tvc')
+        else:
+            abi_path = os.path.join(WALLET_DIR, WALLET_NAME + '.abi.json')
+            tvc_path = os.path.join(WALLET_DIR, WALLET_NAME + '.tvc')
+        self.abi = Abi.from_path(abi_path)
+        with open(tvc_path, 'rb') as f:
             self.tvc = f.read()
 
     def sign(self, to_sign_b64: str):
