@@ -10,7 +10,7 @@ import base64
 import time
 from ledgercomm import Transport
 import tonclient
-from tonclient.client import TonClient, DEVNET_BASE_URL
+from tonclient.client import TonClient, DEVNET_BASE_URL, MAINNET_BASE_URL
 from tonclient.types import Abi, DeploySet, CallSet, Signer, AccountForExecutor
 
 logging.basicConfig(filename='freetoncli.log', format='%(asctime)s;%(levelname)s;%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
@@ -148,6 +148,12 @@ class Wallet:
         json_formatted_str = json.dumps(result['decoded']['output'], indent=2)
         logger.info(json_formatted_str)
 
+    def get_balance(self, address: str) -> float:
+        res = self.client.net.query_collection(collection='accounts', filter={'id': {'eq': address}}, result='balance')
+        if res:
+            return int(res[0]['balance'], 16) / 1000000000.0
+        return 0
+
 
 class ArgParser(argparse.ArgumentParser):
     def error(self, message):
@@ -160,11 +166,12 @@ def main():
     parser = ArgParser()
     parser.add_argument('-a', '--account', default=0, type=int, help='BIP32 account to retrieve (default 0)')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug logs')
-    parser.add_argument('-u', '--url', default=DEVNET_BASE_URL, help='Server address (default {})'.format(DEVNET_BASE_URL))
+    parser.add_argument('-u', '--url', default=MAINNET_BASE_URL, help='Server address (default {})'.format(MAINNET_BASE_URL))
     parser.add_argument('--wc', default=0, type=int, help='Workchain id (default 0)')
     parser.add_argument('--getaddr', action='store_true', help='Get address given account')
     parser.add_argument('--getpubkey', action='store_true', help='Get public key given account')
     parser.add_argument('--confirm', action='store_true', help='Confirm action on device')
+    parser.add_argument('--balance', action='store_true', help='Get account balance')
 
     subparsers = parser.add_subparsers(title='subcommands')
     send_parser = subparsers.add_parser('send', help='Send tokens to address')
@@ -184,6 +191,7 @@ def main():
     if args.account < 0 or args.account > 4294967295:
         raise WalletException('account number must be between 0 and 4294967295')
     
+    server_address = args.url
     ledger = Ledger(account=args.account, workchain=args.wc, debug=args.debug)
     if args.getaddr:
         logger.info('Getting address')
@@ -195,8 +203,14 @@ def main():
         logger.info('Getting public key')
         logger.info('Public key: {}'.format(ledger.get_public_key(args.confirm)))
         return
+    if args.balance:
+        client = TonClient(network={'server_address': server_address})
+        wallet = Wallet(client, ledger)
+        address = ledger.get_address()
+        balance = wallet.get_balance(address)
+        logger.info('Address: {} balance is {:g} TON'.format(address, balance))
+        return
     if 'subcommand' in vars(args):
-        server_address = args.url
         logger.info('Server address: {}'.format(server_address))
         client = TonClient(network={'server_address': server_address})
         wallet = Wallet(client, ledger)
